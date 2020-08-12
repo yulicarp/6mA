@@ -1,0 +1,277 @@
+#filter 6mAs with less than 25X coverage
+cat basemods733.gff |grep m6A|grep ^NC| awk '{split($0,A,"m6A"); split(A[2],B,"=|;"); if(B[2]>=25){print $0}}' > m6A_cov733.gff
+cat basemods763.gff |grep m6A|grep ^NC| awk '{split($0,A,"m6A"); split(A[2],B,"=|;"); if(B[2]>=25){print $0}}' > m6A_cov763.gff
+
+#statistics of 6ma number per chromosome
+cat basemods733.gff |grep m6A|grep ^NC| awk '{split($0,A,"m6A"); split(A[2],B,"=|;"); if(B[2]>=25){print $0}}' | awk '{sum[$1]+=1}END{for(i in sum)print i"\t"sum[i]}' | sort -k1,1nr | more
+cat basemods763.gff |grep m6A|grep ^NC| awk '{split($0,A,"m6A"); split(A[2],B,"=|;"); if(B[2]>=25){print $0}}' | awk '{sum[$1]+=1}END{for(i in sum)print i"\t"sum[i]}' | sort -k1,1nr | more
+
+#statistics of 6ma number in plus strand per chromosome
+cat basemods733.gff |grep m6A|grep ^NC| awk '{split($0,A,"m6A"); split(A[2],B,"=|;"); if(B[2]>=25){print $0}}' | awk '$7=="+"{print}' | awk '{sum[$1]+=1}END{for(i in sum)print i"\t"sum[i]}' | sort -k1,1nr | more
+cat basemods763.gff |grep m6A|grep ^NC| awk '{split($0,A,"m6A"); split(A[2],B,"=|;"); if(B[2]>=25){print $0}}' | awk '$7=="+"{print}' | awk '{sum[$1]+=1}END{for(i in sum)print i"\t"sum[i]}' | sort -k1,1nr | more
+
+#statistics of 6ma number in minus strand per chromosome
+cat basemods733.gff |grep m6A|grep ^NC| awk '{split($0,A,"m6A"); split(A[2],B,"=|;"); if(B[2]>=25){print $0}}' | awk '$7=="-"{print}' | awk '{sum[$1]+=1}END{for(i in sum)print i"\t"sum[i]}' | sort -k1,1nr | more
+cat basemods763.gff |grep m6A|grep ^NC| awk '{split($0,A,"m6A"); split(A[2],B,"=|;"); if(B[2]>=25){print $0}}' | awk '$7=="-"{print}' | awk '{sum[$1]+=1}END{for(i in sum)print i"\t"sum[i]}' | sort -k1,1nr | more
+
+#statistics of A Nucleotide base number per chromosome
+cat cassava_reference.fa |grep -v '#' |awk '/^>N/{head=$1} !/^>N/{a[head]+=gsub('/[AaTt]/',"&")}END{for(i in a ){print i"\t"a[i]}}' |grep 'NC'|awk '{gsub(">","");print}' |sort | more
+cat TAIR10.1.fna |grep -v '#' |awk '/^>N/{head=$1} !/^>N/{a[head]+=gsub('/[AaTt]/',"&")}END{for(i in a ){print i"\t"a[i]}}' |grep 'NC'|awk '{gsub(">","");print}' |sort | more
+
+TAIR10.1.fna
+#statistics of A Nucleotide base number in plus strand per chromosome
+cat cassava_reference.fa |grep -v '#' |awk '/^>N/{head=$1} !/^>N/{a[head]+=gsub('/[Aa]/',"&")}END{for(i in a ){print i"\t"a[i]}}' |grep 'NC'|awk '{gsub(">","");print}' |sort | more
+#statistics of A Nucleotide base number in minus strand per chromosome
+cat cassava_reference.fa |grep -v '#' |awk '/^>N/{head=$1} !/^>N/{a[head]+=gsub('/[Tt]/',"&")}END{for(i in a ){print i"\t"a[i]}}' |grep 'NC'|awk '{gsub(">","");print}' |sort | more
+
+##circos
+
+
+awk '{split($0,A,"frac="); split(A[2],B,";");if(B[1]<0.35) print $0}' m6A_cov733.gff > circos/733_frac35.txt
+awk '{split($0,A,"frac="); split(A[2],B,";");if(B[1]>=0.35 && B[1]<=0.65 ) print $0}' m6A_cov733.gff > circos/733_frac65.txt
+awk '{split($0,A,"frac="); split(A[2],B,";");if(B[1]>0.75 ) print $0}' m6A_cov733.gff > circos/733_frac100.txt
+
+awk '{split($0,A,"frac="); split(A[2],B,";");if(B[1]<0.35) print $0}' m6A_cov763.gff > circos/763_frac35.txt
+awk '{split($0,A,"frac="); split(A[2],B,";");if(B[1]>=0.35 && B[1]<=0.65 ) print $0}' m6A_cov763.gff > circos/763_frac65.txt
+awk '{split($0,A,"frac="); split(A[2],B,";");if(B[1]>0.75 ) print $0}' m6A_cov763.gff > circos/763_frac100.txt
+
+#染色体长度分段，叶绿体以4000，普通染色体以20000
+#将fa文件中染色体碱基排列为一行
+awk '/^>/ {printf("\n%s\n",$0);next; } { printf("%s",$0);}  END {printf("\n");}' cassava_reference.fa | awk 'NR>1{print}' | awk -v len=4000 'BEGIN{OFS="\t"}{if(/^>/){head=$1}else{l=length($0)/len+1;for(i=1;i<=l;i++){tmp=substr($0,(i-1)*len+1,len);sum=gsub(/[AaTtCcGgNn]/,"&",tmp);sum_b=gsub(/[AaTt]/,"&",tmp);if(i-1==0){start=(i-1)*len}else{start=(i-1)*len+1};print head,start,i*len,sum,sum_b}}}' | awk '{gsub(">","");print}' | sort -k1,1 -k2nr,2 | awk '{if($4<4000){print $1"\t"$2"\t"$2+$4-1"\t"$5}else{print $1"\t"$2"\t"$3"\t"$5}}' > len_4000.bed
+awk '/^>/ {printf("\n%s\n",$0);next; } { printf("%s",$0);}  END {printf("\n");}' cassava_reference.fa | awk 'NR>1{print}' | awk -v len=20000 'BEGIN{OFS="\t"}{if(/^>/){head=$1}else{l=length($0)/len+1;for(i=1;i<=l;i++){tmp=substr($0,(i-1)*len+1,len);sum=gsub(/[AaTtCcGgNn]/,"&",tmp);sum_b=gsub(/[AaTt]/,"&",tmp);if(i-1==0){start=(i-1)*len}else{start=(i-1)*len+1};print head,start,i*len,sum,sum_b}}}' | awk '{gsub(">","");print}' | sort -k1,1 -k2nr,2 | awk '{if($4<20000){print $1"\t"$2"\t"$2+$4-1"\t"$5}else{print $1"\t"$2"\t"$3"\t"$5}}' > len_20000.bed
+awk '$1=="NC_010433.1"{print}' len_4000.bed > chl.bed
+awk '$1!="NC_010433.1"{print}' len_20000.bed > autosome.bed
+
+#然后手动将两文件整合
+cat autosome.bed chl.bed | awk '{print $1"\t"$2"\t"$3"\t"$4"\t"$1"-"$2"-"$3"-"$4}' > genome_10000.bed
+
+#caculation 6ma density
+intersectBed -loj -a genome_10000.bed -b 733_frac100.txt | awk '{if($7<0){a[$5]+=0}else{a[$5]+=1}}END{for(i in a)print i"-"a[i]}' | awk '{split($0,A,"-"); print A[1]"\t"A[2]"\t"A[3]"\t"A[5]/A[4] }' > 733f10.txt
+intersectBed -loj -a genome_10000.bed -b 733_frac65.txt | awk '{if($7<0){a[$5]+=0}else{a[$5]+=1}}END{for(i in a)print i"-"a[i]}' | awk '{split($0,A,"-"); print A[1]"\t"A[2]"\t"A[3]"\t"A[5]/A[4] }' > 733f65.txt
+intersectBed -loj -a genome_10000.bed -b 733_frac35.txt | awk '{if($7<0){a[$5]+=0}else{a[$5]+=1}}END{for(i in a)print i"-"a[i]}' | awk '{split($0,A,"-"); print A[1]"\t"A[2]"\t"A[3]"\t"A[5]/A[4] }' > 733f35.txt
+
+intersectBed -loj -a genome_10000.bed -b 763_frac100.txt | awk '{if($7<0){a[$5]+=0}else{a[$5]+=1}}END{for(i in a)print i"-"a[i]}' | awk '{split($0,A,"-"); print A[1]"\t"A[2]"\t"A[3]"\t"A[5]/A[4] }' > 763f10.txt
+intersectBed -loj -a genome_10000.bed -b 763_frac65.txt | awk '{if($7<0){a[$5]+=0}else{a[$5]+=1}}END{for(i in a)print i"-"a[i]}' | awk '{split($0,A,"-"); print A[1]"\t"A[2]"\t"A[3]"\t"A[5]/A[4] }' > 763f65.txt
+intersectBed -loj -a genome_10000.bed -b 763_frac35.txt | awk '{if($7<0){a[$5]+=0}else{a[$5]+=1}}END{for(i in a)print i"-"a[i]}' | awk '{split($0,A,"-"); print A[1]"\t"A[2]"\t"A[3]"\t"A[5]/A[4] }' > 763f35.txt
+
+#caculation 6ma density percentage(%)
+intersectBed -loj -a genome_10000.bed -b 733_frac100.txt | awk '{if($7<0){a[$5]+=0}else{a[$5]+=1}}END{for(i in a)print i"-"a[i]}' | awk '{split($0,A,"-"); print A[1]"\t"A[2]"\t"A[3]"\t"$0 }' > 733f10_1.bed
+intersectBed -loj -a 733f10_1.bed -b 733_frac65.txt | awk '{if($6<0){a[$4]+=0}else{a[$4]+=1}}END{for(i in a)print i"-"a[i]}' | awk '{split($0,A,"-"); print A[1]"\t"A[2]"\t"A[3]"\t"$0 }' > 733f10_1_65_2.bed
+intersectBed -loj -a 733f10_1_65_2.bed -b 733_frac35.txt | awk '{if($6<0){a[$4]+=0}else{a[$4]+=1}}END{for(i in a)print i"-"a[i]}' | awk '{split($0,A,"-"); print A[1]"\t"A[2]"\t"A[3]"\t"A[5]/A[4]"\t"A[6]/A[4]"\t"A[7]/A[4]}' | awk '{if($4+$5+$6==0){print $1"\t"$2"\t"$3"\t""0""\t""0""\t""0"}else{print $1"\t"$2"\t"$3"\t"$4/($4+$5+$6)"\t"$5/($4+$5+$6)"\t"$6/($4+$5+$6)}}' > 733f10_1_65_2_35_3_percentage.bed
+
+intersectBed -loj -a genome_10000.bed -b 763_frac100.txt | awk '{if($7<0){a[$5]+=0}else{a[$5]+=1}}END{for(i in a)print i"-"a[i]}' | awk '{split($0,A,"-"); print A[1]"\t"A[2]"\t"A[3]"\t"$0 }' > 763f10_1.bed
+intersectBed -loj -a 763f10_1.bed -b 763_frac65.txt | awk '{if($6<0){a[$4]+=0}else{a[$4]+=1}}END{for(i in a)print i"-"a[i]}' | awk '{split($0,A,"-"); print A[1]"\t"A[2]"\t"A[3]"\t"$0 }' > 763f10_1_65_2.bed
+intersectBed -loj -a 763f10_1_65_2.bed -b 763_frac35.txt | awk '{if($6<0){a[$4]+=0}else{a[$4]+=1}}END{for(i in a)print i"-"a[i]}' | awk '{split($0,A,"-"); print A[1]"\t"A[2]"\t"A[3]"\t"A[5]/A[4]"\t"A[6]/A[4]"\t"A[7]/A[4]}' | awk '{if($4+$5+$6==0){print $1"\t"$2"\t"$3"\t""0""\t""0""\t""0"}else{print $1"\t"$2"\t"$3"\t"$4/($4+$5+$6)"\t"$5/($4+$5+$6)"\t"$6/($4+$5+$6)}}' > 763f10_1_65_2_35_3_percentage.bed
+
+awk '{print "733"$1"\t"$2"\t"$3"\t"$4}' 733f10_1_65_2_35_3_percentage.bed > 733f10percentage.bed
+awk '{print "733"$1"\t"$2"\t"$3"\t"$5}' 733f10_1_65_2_35_3_percentage.bed > 733f65percentage.bed
+awk '{print "733"$1"\t"$2"\t"$3"\t"$6}' 733f10_1_65_2_35_3_percentage.bed > 733f35percentage.bed
+
+awk '{print "763"$1"\t"$2"\t"$3"\t"$4}' 763f10_1_65_2_35_3_percentage.bed > 763f10percentage.bed
+awk '{print "763"$1"\t"$2"\t"$3"\t"$5}' 763f10_1_65_2_35_3_percentage.bed > 763f65percentage.bed
+awk '{print "763"$1"\t"$2"\t"$3"\t"$6}' 763f10_1_65_2_35_3_percentage.bed > 763f35percentage.bed
+
+
+##motif
+awk '{split($0,A,"context="); split(A[2],B,";"); print $1":"$4"\t"B[1]}' m6A_cov733.gff | awk '{print ">"$1"\n"substr($2,17,9)}' > 733motif.fa
+awk '{split($0,A,"context="); split(A[2],B,";"); print $1":"$4"\t"B[1]}' m6A_cov763.gff | awk '{print ">"$1"\n"substr($2,17,9)}' > 763motif.fa
+meme-chip -oc meme/733meme -norc -meme-mod anr -meme-minw 5 -meme-maxw 7 -meme-nmotifs 10 -spamo-skip -fimo-skip 733motif.fa
+meme-chip -oc meme/763meme -norc -meme-mod anr -meme-minw 5 -meme-maxw 7 -meme-nmotifs 10 -spamo-skip -fimo-skip 763motif.fa
+#statistics
+awk '{split($0,A,"context="); split(A[2],B,";"); print B[1]}' m6A_cov733.gff | awk '{print substr($0,17,9)}' > 733sta
+awk '{split($0,A,"context="); split(A[2],B,";"); print B[1]}' m6A_cov763.gff | awk '{print substr($0,17,9)}' > 763sta
+
+##Venn_make 
+awk '{print $1"-"$4}' m6A_cov733.gff > A
+awk '{print $1"-"$4}' m6A_cov763.gff > B
+paste A B > AB.txt
+sed -i "1iA\tB" AB.txt 
+Rscript venn.R
+
+
+###statistics $3 in annotation.GFF
+awk '{print $3}' GCF_001659605.1_Manihot_esculenta_v6_genomic.gff |  awk '{sum[$0]+=1}END{for(i in sum)print i"\t"sum[i]}' | more
+#statistics gene_biotype in annotation.GFF
+awk '{if($3=="gene"){print}}' GCF_001659605.1_Manihot_esculenta_v6_genomic.gff | awk 'split($0,A,"gene_biotype="){print A[2]}' | awk 'split($0,B,";"){print B[1]}' | awk '{sum[$0]+=1}END{for(i in sum)print i"\t"sum[i]}' | more
+
+#result:"rRNA	7
+lncRNA	1609
+protein_coding	28301
+other	3
+tRNA	818
+"
+
+#make gff file by gene style
+awk '{if($3=="gene"){split($0,A,"gene_biotype=");split(A[2],B,";");if(B[1]=="rRNA"){print}}}' GCF_001659605.1_Manihot_esculenta_v6_genomic.gff > annotion/rRNA.gff
+awk '{if($3=="gene"){split($0,A,"gene_biotype=");split(A[2],B,";");if(B[1]=="lncRNA"){print}}}' GCF_001659605.1_Manihot_esculenta_v6_genomic.gff > annotion/lncRNA.gff
+awk '{if($3=="gene"){split($0,A,"gene_biotype=");split(A[2],B,";");if(B[1]=="protein_coding"){print}}}' GCF_001659605.1_Manihot_esculenta_v6_genomic.gff > annotion/protein_coding.gff
+awk '{if($3=="gene"){split($0,A,"gene_biotype=");split(A[2],B,";");if(B[1]=="tRNA"){print}}}' GCF_001659605.1_Manihot_esculenta_v6_genomic.gff > annotion/tRNA.gff
+#make bed file by gff file
+awk '{split($9,C,"GeneID:");split(C[2],D,";");split($9,E,"Name=");split(E[2],F,";"); print $1"\t"$4-1"\t"$5"\t"D[1]"\t"F[1]}' rRNA.gff | sort -k1,1 -k2,2n | uniq | bedtools merge -c 4,5 -o collapse,collapse > rRNA.bed
+awk '{split($9,C,"GeneID:");split(C[2],D,";");split($9,E,"Name=");split(E[2],F,";"); print $1"\t"$4-1"\t"$5"\t"D[1]"\t"F[1]}' lncRNA.gff | sort -k1,1 -k2,2n | uniq | bedtools merge -c 4,5 -o collapse,collapse > lncRNA.bed
+awk '{split($9,C,"GeneID:");split(C[2],D,";");split($9,E,"Name=");split(E[2],F,";"); print $1"\t"$4-1"\t"$5"\t"D[1]"\t"F[1]}' protein_coding.gff  > protein_coding.bed
+awk '{print $5"\t"$2"\t"$3"\t"$4"\t"$1}' protein_coding.bed > protein_coding2.bed
+awk '{split($9,C,"GeneID:");split(C[2],D,";");split($9,E,"Name=");split(E[2],F,";"); print $1"\t"$4-1"\t"$5"\t"D[1]"\t"F[1]}' tRNA.gff | sort -k1,1 -k2,2n | uniq | bedtools merge -c 4,5 -o collapse,collapse > tRNA.bed
+
+#statistics chr size in annotation.GFF
+awk '{print $2,$3,$4}' GCF_001659605.1_Manihot_esculenta_v6_genomic.gff | awk '/^NC_/{print $1"\t"$2-1"\t"$3}' > chr.bed
+subtractBed -a chr.bed -b lncRNA.bed protein_coding4.bed rRNA.bed tRNA.bed > intergenic.bed
+
+##define genome feature per gene
+#raw file is "cds.bed  UTR3.bed  UTR5.bed"  using GenomicFeatures,/home/xjf/Public/analysis/m6a/Manihot_esculenta/annotion/feature/script.R
+awk '/^NC/{if($3=="mRNA"){print}}' GCF_001659605.1_Manihot_esculenta_v6_genomic.gff | awk '{split($0,A,"transcript_id=");split($0,B,"gene=");split(B[2],C,";");split($0,D,"GeneID:");split(D[2],E,",");print A[2]"\t"$4-1"\t"$5"\t"E[1]"\t"C[1]"\t"$1"\t"$7}' > mRNA_ID.bed
+#CDS region
+awk '/^NC/{print $6"\t"$2-1"\t"$3"\t"$1"\t"$5}' cds.bed | sort -k1,1 -k2,2n | uniq | bedtools merge > cds_merge.bed
+intersectBed -a cds_merge.bed -b ../protein_coding2.bed -wb | awk '{print $1"\t"$2"\t"$3"\t"$7"\t"$8}' > cds_gene.bed
+
+#UTR5 region
+awk '/^NC/{print $6"\t"$2-1"\t"$3"\t"$1"\t"$5}' UTR5.bed > utr5.bed
+intersectBed -a utr5.bed -b mRNA_ID.bed -wb | awk '{print $10"\t"$2"\t"$3"\t"$9"\t"$4"\t"$5 }' > utr5_pergene.bed
+sort -k1,1 -k2,2n utr5_pergene.bed | uniq | bedtools merge > utr5_merge.bed
+subtractBed -a utr5_merge.bed -b cds_merge.bed > utr5_nocds.bed
+intersectBed -a utr5_nocds.bed -b ../protein_coding2.bed -wa -wb | awk '{print $1"\t"$2"\t"$3"\t"$7"\t"$8}' > utr5_id.bed
+
+#UTR3 region
+awk '/^NC/{print $6"\t"$2-1"\t"$3"\t"$1"\t"$5}' UTR3.bed > utr3.bed
+intersectBed -a utr3.bed -b mRNA_ID.bed -wb | awk '{print $10"\t"$2"\t"$3"\t"$9"\t"$4"\t"$5 }' > utr3_pergene.bed
+sort -k1,1 -k2,2n utr3_pergene.bed | uniq | bedtools merge > utr3_merge.bed
+subtractBed -a utr3_merge.bed -b cds_merge.bed > utr3_nocds.bed
+subtractBed -a utr3_nocds.bed -b utr5_nocds.bed > utr3_nocdsutr5.bed
+intersectBed -a utr3_nocdsutr5.bed -b ../protein_coding2.bed -wa -wb | awk '{print $1"\t"$2"\t"$3"\t"$7"\t"$8}' > utr3_id.bed
+#intron region
+subtractBed -a ../protein_coding2.bed -b utr3_nocdsutr5.bed utr5_nocds.bed cds_merge.bed > intron.bed
+
+##count 6mA_density per gene
+awk '{print $1"\t"$4-1"\t"$5}' m6A_cov733.gff > m6a733.bed
+awk '{print $1"\t"$4-1"\t"$5}' m6A_cov763.gff > m6a763.bed
+
+# CDS count 6ma density per gene
+awk '{print $5"\t"$2"\t"$3"\t"$5"_"$2"_"$3"_"$4"_"$1}' cds_gene.bed > cds_standard.bed
+bedtools getfasta -fi cassava_reference.fa -bed cds_standard.bed -name -fo cds.fa
+awk 'BEGIN{OFS="\t"}{if(/^>/){gsub(">","",$0);split($0,A,"_");}else{sum=gsub(/[AaTt]/,"&",$0);print A[1]"_"A[2],A[3],A[4],A[1]"_"A[2]"_"A[3]"_"A[4]"_"A[5]"_"A[6]"_"sum}}' cds.fa > cds_A.bed
+intersectBed -loj -a cds_A.bed -b m6a733.bed | awk '{if($6<0){a[$4]=="0"}else{a[$4]+=1}}END{for(i in a)print i,a[i]}' | awk '{if($2==""){print $1,"0"}else{print $0}}' | awk '{split($1,A,"_");if(A[7]!="0"){print A[6]"\t"A[5]"\t"A[1]"_"A[2]"\t"A[3]"\t"A[4]"\t"A[7]"\t"$2"\t"$2/A[7]}else{print A[6]"\t"A[5]"\t"A[1]"_"A[2]"\t"A[3]"\t"A[4]"\t"A[7]"\t"$2"\t""NA"}}' > cds_6madensity_pregene_733
+intersectBed -loj -a cds_A.bed -b m6a763.bed | awk '{if($6<0){a[$4]=="0"}else{a[$4]+=1}}END{for(i in a)print i,a[i]}' | awk '{if($2==""){print $1,"0"}else{print $0}}' | awk '{split($1,A,"_");if(A[7]!="0"){print A[6]"\t"A[5]"\t"A[1]"_"A[2]"\t"A[3]"\t"A[4]"\t"A[7]"\t"$2"\t"$2/A[7]}else{print A[6]"\t"A[5]"\t"A[1]"_"A[2]"\t"A[3]"\t"A[4]"\t"A[7]"\t"$2"\t""NA"}}' > cds_6madensity_pregene_763
+#result file "gene_name,geneID,reference_name,cds_star,cds_end,AT_counts,m6a_sites_num,6ma_density"
+
+# intron count 6ma density per gene
+awk '{print $5"\t"$2"\t"$3"\t"$5"_"$2"_"$3"_"$4"_"$1}' intron.bed > intron_standard.bed
+bedtools getfasta -fi cassava_reference.fa -bed intron_standard.bed -name -fo intron.fa
+awk 'BEGIN{OFS="\t"}{if(/^>/){gsub(">","",$0);split($0,A,"_");}else{sum=gsub(/[AaTt]/,"&",$0);print A[1]"_"A[2],A[3],A[4],A[1]"_"A[2]"_"A[3]"_"A[4]"_"A[5]"_"A[6]"_"sum}}' intron.fa > intron_A.bed
+intersectBed -loj -a intron_A.bed -b m6a733.bed | awk '{if($6<0){a[$4]=="0"}else{a[$4]+=1}}END{for(i in a)print i,a[i]}' | awk '{if($2==""){print $1,"0"}else{print $0}}' | awk '{split($1,A,"_");if(A[7]!="0"){print A[6]"\t"A[5]"\t"A[1]"_"A[2]"\t"A[3]"\t"A[4]"\t"A[7]"\t"$2"\t"$2/A[7]}else{print A[6]"\t"A[5]"\t"A[1]"_"A[2]"\t"A[3]"\t"A[4]"\t"A[7]"\t"$2"\t""NA"}}' > intron_6madensity_pregene_733
+intersectBed -loj -a intron_A.bed -b m6a763.bed | awk '{if($6<0){a[$4]=="0"}else{a[$4]+=1}}END{for(i in a)print i,a[i]}' | awk '{if($2==""){print $1,"0"}else{print $0}}' | awk '{split($1,A,"_");if(A[7]!="0"){print A[6]"\t"A[5]"\t"A[1]"_"A[2]"\t"A[3]"\t"A[4]"\t"A[7]"\t"$2"\t"$2/A[7]}else{print A[6]"\t"A[5]"\t"A[1]"_"A[2]"\t"A[3]"\t"A[4]"\t"A[7]"\t"$2"\t""NA"}}' > intron_6madensity_pregene_763
+
+# utr5,utr3 count 6ma density per gene
+awk '{print $5"\t"$2"\t"$3"\t"$5"_"$2"_"$3"_"$4"_"$1}' utr3_id.bed > utr3_standard.bed
+bedtools getfasta -fi cassava_reference.fa -bed utr3_standard.bed -name -fo utr3.fa
+awk 'BEGIN{OFS="\t"}{if(/^>/){gsub(">","",$0);split($0,A,"_");}else{sum=gsub(/[AaTt]/,"&",$0);print A[1]"_"A[2],A[3],A[4],A[1]"_"A[2]"_"A[3]"_"A[4]"_"A[5]"_"A[6]"_"sum}}' utr3.fa > utr3_A.bed
+intersectBed -loj -a utr3_A.bed -b m6a733.bed | awk '{if($6<0){a[$4]=="0"}else{a[$4]+=1}}END{for(i in a)print i,a[i]}' | awk '{if($2==""){print $1,"0"}else{print $0}}' | awk '{split($1,A,"_");if(A[7]!="0"){print A[6]"\t"A[5]"\t"A[1]"_"A[2]"\t"A[3]"\t"A[4]"\t"A[7]"\t"$2"\t"$2/A[7]}else{print A[6]"\t"A[5]"\t"A[1]"_"A[2]"\t"A[3]"\t"A[4]"\t"A[7]"\t"$2"\t""NA"}}' > utr3_6madensity_pregene_733
+intersectBed -loj -a intron_A.bed -b m6a763.bed | awk '{if($6<0){a[$4]=="0"}else{a[$4]+=1}}END{for(i in a)print i,a[i]}' | awk '{if($2==""){print $1,"0"}else{print $0}}' | awk '{split($1,A,"_");if(A[7]!="0"){print A[6]"\t"A[5]"\t"A[1]"_"A[2]"\t"A[3]"\t"A[4]"\t"A[7]"\t"$2"\t"$2/A[7]}else{print A[6]"\t"A[5]"\t"A[1]"_"A[2]"\t"A[3]"\t"A[4]"\t"A[7]"\t"$2"\t""NA"}}' > utr3_6madensity_pregene_763
+
+awk '{print $5"\t"$2"\t"$3"\t"$5"_"$2"_"$3"_"$4"_"$1}' utr5_id.bed > utr5_standard.bed
+bedtools getfasta -fi cassava_reference.fa -bed utr5_standard.bed -name -fo utr5.fa
+awk 'BEGIN{OFS="\t"}{if(/^>/){gsub(">","",$0);split($0,A,"_");}else{sum=gsub(/[AaTt]/,"&",$0);print A[1]"_"A[2],A[3],A[4],A[1]"_"A[2]"_"A[3]"_"A[4]"_"A[5]"_"A[6]"_"sum}}' utr5.fa > utr5_A.bed
+intersectBed -loj -a utr5_A.bed -b m6a733.bed | awk '{if($6<0){a[$4]=="0"}else{a[$4]+=1}}END{for(i in a)print i,a[i]}' | awk '{if($2==""){print $1,"0"}else{print $0}}' | awk '{split($1,A,"_");if(A[7]!="0"){print A[6]"\t"A[5]"\t"A[1]"_"A[2]"\t"A[3]"\t"A[4]"\t"A[7]"\t"$2"\t"$2/A[7]}else{print A[6]"\t"A[5]"\t"A[1]"_"A[2]"\t"A[3]"\t"A[4]"\t"A[7]"\t"$2"\t""NA"}}' > utr5_6madensity_pregene_733
+intersectBed -loj -a utr5_A.bed -b m6a763.bed | awk '{if($6<0){a[$4]=="0"}else{a[$4]+=1}}END{for(i in a)print i,a[i]}' | awk '{if($2==""){print $1,"0"}else{print $0}}' | awk '{split($1,A,"_");if(A[7]!="0"){print A[6]"\t"A[5]"\t"A[1]"_"A[2]"\t"A[3]"\t"A[4]"\t"A[7]"\t"$2"\t"$2/A[7]}else{print A[6]"\t"A[5]"\t"A[1]"_"A[2]"\t"A[3]"\t"A[4]"\t"A[7]"\t"$2"\t""NA"}}' > utr5_6madensity_pregene_763
+
+# protein-coding gene count 6ma density per gene
+awk '{print $5"\t"$2"\t"$3"\t"$5"_"$2"_"$3"_"$4"_"$1}' ../protein_coding2.bed > protein_standard.bed
+bedtools getfasta -fi cassava_reference.fa -bed protein_standard.bed -name -fo protein.fa
+awk 'BEGIN{OFS="\t"}{if(/^>/){gsub(">","",$0);split($0,A,"_");}else{sum=gsub(/[AaTt]/,"&",$0);print A[1]"_"A[2],A[3],A[4],A[1]"_"A[2]"_"A[3]"_"A[4]"_"A[5]"_"A[6]"_"sum}}' protein.fa > protein_A.bed
+intersectBed -loj -a protein_A.bed -b m6a733.bed | awk '{if($6<0){a[$4]=="0"}else{a[$4]+=1}}END{for(i in a)print i,a[i]}' | awk '{if($2==""){print $1,"0"}else{print $0}}' | awk '{split($1,A,"_");if(A[7]!="0"){print A[6]"\t"A[5]"\t"A[1]"_"A[2]"\t"A[3]"\t"A[4]"\t"A[7]"\t"$2"\t"$2/A[7]}else{print A[6]"\t"A[5]"\t"A[1]"_"A[2]"\t"A[3]"\t"A[4]"\t"A[7]"\t"$2"\t""NA"}}' > protein_6madensity_pregene_733
+intersectBed -loj -a protein_A.bed -b m6a763.bed | awk '{if($6<0){a[$4]=="0"}else{a[$4]+=1}}END{for(i in a)print i,a[i]}' | awk '{if($2==""){print $1,"0"}else{print $0}}' | awk '{split($1,A,"_");if(A[7]!="0"){print A[6]"\t"A[5]"\t"A[1]"_"A[2]"\t"A[3]"\t"A[4]"\t"A[7]"\t"$2"\t"$2/A[7]}else{print A[6]"\t"A[5]"\t"A[1]"_"A[2]"\t"A[3]"\t"A[4]"\t"A[7]"\t"$2"\t""NA"}}' > protein_6madensity_pregene_763
+
+# trna rrna lncrna gene count 6ma density per gene
+awk '{print $1"\t"$2"\t"$3"\t"$1"_"$2"_"$3"_"$4"_"$5}' ../lncRNA.bed > lncRNA_standard.bed
+bedtools getfasta -fi cassava_reference.fa -bed lncRNA_standard.bed -name -fo lncRNA.fa
+awk 'BEGIN{OFS="\t"}{if(/^>/){gsub(">","",$0);split($0,A,"_");}else{sum=gsub(/[AaTt]/,"&",$0);print A[1]"_"A[2],A[3],A[4],A[1]"_"A[2]"_"A[3]"_"A[4]"_"A[5]"_"A[6]"_"sum}}' lncRNA.fa > lncRNA_A.bed
+intersectBed -loj -a lncRNA_A.bed -b m6a733.bed | awk '{if($6<0){a[$4]=="0"}else{a[$4]+=1}}END{for(i in a)print i,a[i]}' | awk '{if($2==""){print $1,"0"}else{print $0}}' | awk '{split($1,A,"_");if(A[7]!="0"){print A[6]"\t"A[5]"\t"A[1]"_"A[2]"\t"A[3]"\t"A[4]"\t"A[7]"\t"$2"\t"$2/A[7]}else{print A[6]"\t"A[5]"\t"A[1]"_"A[2]"\t"A[3]"\t"A[4]"\t"A[7]"\t"$2"\t""NA"}}' > lncRNA_6madensity_pregene_733
+intersectBed -loj -a lncRNA_A.bed -b m6a763.bed | awk '{if($6<0){a[$4]=="0"}else{a[$4]+=1}}END{for(i in a)print i,a[i]}' | awk '{if($2==""){print $1,"0"}else{print $0}}' | awk '{split($1,A,"_");if(A[7]!="0"){print A[6]"\t"A[5]"\t"A[1]"_"A[2]"\t"A[3]"\t"A[4]"\t"A[7]"\t"$2"\t"$2/A[7]}else{print A[6]"\t"A[5]"\t"A[1]"_"A[2]"\t"A[3]"\t"A[4]"\t"A[7]"\t"$2"\t""NA"}}' > lncRNA_6madensity_pregene_763
+
+awk '{print $1"\t"$2"\t"$3"\t"$1"_"$2"_"$3"_"$4"_"$5}' ../tRNA.bed > tRNA_standard.bed
+bedtools getfasta -fi cassava_reference.fa -bed tRNA_standard.bed -name -fo tRNA.fa
+awk 'BEGIN{OFS="\t"}{if(/^>/){gsub(">","",$0);split($0,A,"_");}else{sum=gsub(/[AaTt]/,"&",$0);print A[1]"_"A[2],A[3],A[4],A[1]"_"A[2]"_"A[3]"_"A[4]"_"A[5]"_"A[6]"_"sum}}' tRNA.fa > tRNA_A.bed
+intersectBed -loj -a tRNA_A.bed -b m6a733.bed | awk '{if($6<0){a[$4]=="0"}else{a[$4]+=1}}END{for(i in a)print i,a[i]}' | awk '{if($2==""){print $1,"0"}else{print $0}}' | awk '{split($1,A,"_");if(A[7]!="0"){print A[6]"\t"A[5]"\t"A[1]"_"A[2]"\t"A[3]"\t"A[4]"\t"A[7]"\t"$2"\t"$2/A[7]}else{print A[6]"\t"A[5]"\t"A[1]"_"A[2]"\t"A[3]"\t"A[4]"\t"A[7]"\t"$2"\t""NA"}}' > tRNA_6madensity_pregene_733
+intersectBed -loj -a tRNA_A.bed -b m6a763.bed | awk '{if($6<0){a[$4]=="0"}else{a[$4]+=1}}END{for(i in a)print i,a[i]}' | awk '{if($2==""){print $1,"0"}else{print $0}}' | awk '{split($1,A,"_");if(A[7]!="0"){print A[6]"\t"A[5]"\t"A[1]"_"A[2]"\t"A[3]"\t"A[4]"\t"A[7]"\t"$2"\t"$2/A[7]}else{print A[6]"\t"A[5]"\t"A[1]"_"A[2]"\t"A[3]"\t"A[4]"\t"A[7]"\t"$2"\t""NA"}}' > tRNA_6madensity_pregene_763
+
+awk '{print $1"\t"$2"\t"$3"\t"$1"_"$2"_"$3"_"$4"_"$5}' ../rRNA.bed > rRNA_standard.bed
+bedtools getfasta -fi cassava_reference.fa -bed rRNA_standard.bed -name -fo rRNA.fa
+awk 'BEGIN{OFS="\t"}{if(/^>/){gsub(">","",$0);split($0,A,"_");}else{sum=gsub(/[AaTt]/,"&",$0);print A[1]"_"A[2],A[3],A[4],A[1]"_"A[2]"_"A[3]"_"A[4]"_"A[5]"_"A[6]"_"sum}}' rRNA.fa > rRNA_A.bed
+intersectBed -loj -a rRNA_A.bed -b m6a733.bed | awk '{if($6<0){a[$4]=="0"}else{a[$4]+=1}}END{for(i in a)print i,a[i]}' | awk '{if($2==""){print $1,"0"}else{print $0}}' | awk '{split($1,A,"_");if(A[7]!="0"){print A[6]"\t"A[5]"\t"A[1]"_"A[2]"\t"A[3]"\t"A[4]"\t"A[7]"\t"$2"\t"$2/A[7]}else{print A[6]"\t"A[5]"\t"A[1]"_"A[2]"\t"A[3]"\t"A[4]"\t"A[7]"\t"$2"\t""NA"}}' > rRNA_6madensity_pregene_733
+intersectBed -loj -a rRNA_A.bed -b m6a763.bed | awk '{if($6<0){a[$4]=="0"}else{a[$4]+=1}}END{for(i in a)print i,a[i]}' | awk '{if($2==""){print $1,"0"}else{print $0}}' | awk '{split($1,A,"_");if(A[7]!="0"){print A[6]"\t"A[5]"\t"A[1]"_"A[2]"\t"A[3]"\t"A[4]"\t"A[7]"\t"$2"\t"$2/A[7]}else{print A[6]"\t"A[5]"\t"A[1]"_"A[2]"\t"A[3]"\t"A[4]"\t"A[7]"\t"$2"\t""NA"}}' > rRNA_6madensity_pregene_763
+
+# intergenic count 6ma density per 
+awk '{print $1"\t"$2"\t"$3"\t"$1"_"$2"_"$3}' ../intergenic.bed > intergenic_standard.bed
+bedtools getfasta -fi cassava_reference.fa -bed intergenic_standard.bed -name -fo intergenic.fa
+awk 'BEGIN{OFS="\t"}{if(/^>/){gsub(">","",$0);split($0,A,"_");}else{sum=gsub(/[AaTt]/,"&",$0);print A[1]"_"A[2],A[3],A[4],A[1]"_"A[2]"_"A[3]"_"A[4]"_"sum}}' intergenic.fa > intergenic_A.bed
+intersectBed -loj -a intergenic_A.bed -b m6a733.bed | awk '{if($6<0){a[$4]=="0"}else{a[$4]+=1}}END{for(i in a)print i,a[i]}' | awk '{if($2==""){print $1,"0"}else{print $0}}' | awk '{split($1,A,"_");if(A[5]!=0){print A[1]"_"A[2]"\t"A[3]"\t"A[4]"\t"A[5]"\t"$2"\t"$2/A[5]}else{print A[1]"_"A[2]"\t"A[3]"\t"A[4]"\t"A[5]"\t"$2"\t""NA"}}' > intergenic_6madensity_pregene_733
+intersectBed -loj -a intergenic_A.bed -b m6a763.bed | awk '{if($6<0){a[$4]=="0"}else{a[$4]+=1}}END{for(i in a)print i,a[i]}' | awk '{if($2==""){print $1,"0"}else{print $0}}' | awk '{split($1,A,"_");if(A[5]!=0){print A[1]"_"A[2]"\t"A[3]"\t"A[4]"\t"A[5]"\t"$2"\t"$2/A[5]}else{print A[1]"_"A[2]"\t"A[3]"\t"A[4]"\t"A[5]"\t"$2"\t""NA"}}' > intergenic_6madensity_pregene_763
+
+#merge for one gene
+awk '{a[$1"\t"$2]+=$6}{b[$1"\t"$2]+=$7}END{for(i in a){if(a[i]!=0){print i"\t"a[i]"\t"b[i]"\t"b[i]/a[i]}else{print i"\t"a[i]"\t"b[i]"\t""NA"}}}' utr5_6madensity_pregene_733 > utr5_densiy_6ma_pergene2_733
+awk '{a[$1"\t"$2]+=$6}{b[$1"\t"$2]+=$7}END{for(i in a){if(a[i]!=0){print i"\t"a[i]"\t"b[i]"\t"b[i]/a[i]}else{print i"\t"a[i]"\t"b[i]"\t""NA"}}}' utr5_6madensity_pregene_763 > utr5_densiy_6ma_pergene2_763
+awk '{a[$1"\t"$2]+=$6}{b[$1"\t"$2]+=$7}END{for(i in a){if(a[i]!=0){print i"\t"a[i]"\t"b[i]"\t"b[i]/a[i]}else{print i"\t"a[i]"\t"b[i]"\t""NA"}}}' utr3_6madensity_pregene_733 > utr3_densiy_6ma_pergene2_733
+awk '{a[$1"\t"$2]+=$6}{b[$1"\t"$2]+=$7}END{for(i in a){if(a[i]!=0){print i"\t"a[i]"\t"b[i]"\t"b[i]/a[i]}else{print i"\t"a[i]"\t"b[i]"\t""NA"}}}' utr3_6madensity_pregene_766 > utr3_densiy_6ma_pergene2_766
+awk '{a[$1"\t"$2]+=$6}{b[$1"\t"$2]+=$7}END{for(i in a){if(a[i]!=0){print i"\t"a[i]"\t"b[i]"\t"b[i]/a[i]}else{print i"\t"a[i]"\t"b[i]"\t""NA"}}}' cds_6madensity_pregene_733 > cds_densiy_6ma_pergene2_733
+awk '{a[$1"\t"$2]+=$6}{b[$1"\t"$2]+=$7}END{for(i in a){if(a[i]!=0){print i"\t"a[i]"\t"b[i]"\t"b[i]/a[i]}else{print i"\t"a[i]"\t"b[i]"\t""NA"}}}' cds_6madensity_pregene_763 > cds_densiy_6ma_pergene2_763
+awk '{a[$1"\t"$2]+=$6}{b[$1"\t"$2]+=$7}END{for(i in a){if(a[i]!=0){print i"\t"a[i]"\t"b[i]"\t"b[i]/a[i]}else{print i"\t"a[i]"\t"b[i]"\t""NA"}}}' intron_6madensity_pregene_733 > intron_densiy_6ma_pergene2_733
+awk '{a[$1"\t"$2]+=$6}{b[$1"\t"$2]+=$7}END{for(i in a){if(a[i]!=0){print i"\t"a[i]"\t"b[i]"\t"b[i]/a[i]}else{print i"\t"a[i]"\t"b[i]"\t""NA"}}}' intron_6madensity_pregene_763 > intron_densiy_6ma_pergene2_763
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
